@@ -1,0 +1,19 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Calendrier Perso",
+        "description": "Ajoute un calendrier complet dans la barre latérale de Home Assistant (rendez-vous, répétitions, rappels Alexa, Discord, Telegram et Home Assistant). Aucun paramètre à saisir : tout se règle ensuite dans le panneau Calendrier, bouton ⚙."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Calendrier Perso est déjà configuré."
+    }
+  },
+  "services": {
+    "add_event": {"name": "Ajouter un événement", "description": "Crée un rendez-vous (avec répétition et rappels si besoin)."},
+    "delete_event": {"name": "Supprimer un événement", "description": "Supprime un événement et toutes ses répétitions."},
+    "test_notification": {"name": "Tester une notification", "description": "Envoie un message de test sur un canal."},
+    "import_sqlite": {"name": "Importer l'ancien add-on", "description": "Importe la base calendar.db de l'add-on Calendrier Perso."}
+  }
+}

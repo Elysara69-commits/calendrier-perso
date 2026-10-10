@@ -1,0 +1,13 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Personal Calendar",
+        "description": "Adds a full-featured calendar to the Home Assistant sidebar (events, recurrence, reminders via Alexa, Discord, Telegram and Home Assistant notify). Nothing to enter here: everything is configured from the Calendar panel (gear button)."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Personal Calendar is already configured."
+    }
+  }
+}

@@ -1,0 +1,84 @@
+add_event:
+  fields:
+    title:
+      required: true
+      example: "Dentiste"
+      selector:
+        text:
+    start:
+      required: true
+      example: "2026-10-12 14:30"
+      selector:
+        datetime:
+    end:
+      example: "2026-10-12 15:30"
+      selector:
+        datetime:
+    all_day:
+      default: false
+      selector:
+        boolean:
+    description:
+      selector:
+        text:
+          multiline: true
+    location:
+      selector:
+        text:
+    calendar_id:
+      selector:
+        text:
+    importance:
+      default: 1
+      selector:
+        number:
+          min: 0
+          max: 3
+          mode: box
+    reminders:
+      example: "[30, 1440]"
+      selector:
+        object:
+    channels:
+      example: "[ha, discord]"
+      selector:
+        select:
+          multiple: true
+          options: [ha, alexa, discord, telegram]
+    repeat:
+      default: none
+      selector:
+        select:
+          options: [none, daily, weekly, monthly, yearly]
+    repeat_interval:
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 99
+          mode: box
+    repeat_count:
+      selector:
+        number:
+          min: 1
+          max: 999
+          mode: box
+delete_event:
+  fields:
+    event_id:
+      required: true
+      selector:
+        text:
+test_notification:
+  fields:
+    channel:
+      required: true
+      selector:
+        select:
+          options: [ha, alexa, discord, telegram]
+import_sqlite:
+  fields:
+    path:
+      default: /config/calendar.db
+      selector:
+        text:
