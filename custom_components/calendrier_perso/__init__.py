@@ -82,6 +82,7 @@ def _register_services(hass: HomeAssistant) -> None:
             "title": d["title"], "description": d.get("description", ""), "location": d.get("location", ""),
             "all_day": all_day, "start": start, "end": end, "importance": d["importance"],
             "calendar_id": d.get("calendar_id"), "reminders": d["reminders"], "channels": d["channels"],
+            "ha_services": d["ha_services"], "alexa_services": d["alexa_services"],
             "recurrence": recurrence,
         }
         try:
@@ -121,6 +122,8 @@ def _register_services(hass: HomeAssistant) -> None:
             vol.Optional("importance", default=1): vol.All(vol.Coerce(int), vol.Range(min=0, max=3)),
             vol.Optional("reminders", default=[]): vol.All(cv.ensure_list, [vol.Coerce(int)]),
             vol.Optional("channels", default=[]): vol.All(cv.ensure_list, [vol.In(CHANNELS)]),
+            vol.Optional("ha_services", default=[]): vol.All(cv.ensure_list, [cv.string]),
+            vol.Optional("alexa_services", default=[]): vol.All(cv.ensure_list, [cv.string]),
             vol.Optional("repeat", default="none"): vol.In(["none", "daily", "weekly", "monthly", "yearly"]),
             vol.Optional("repeat_interval", default=1): vol.All(vol.Coerce(int), vol.Range(min=1, max=99)),
             vol.Optional("repeat_count"): vol.All(vol.Coerce(int), vol.Range(min=1, max=999)),

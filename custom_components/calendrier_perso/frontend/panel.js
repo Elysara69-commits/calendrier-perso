@@ -141,6 +141,7 @@ dialog::backdrop{background:rgba(0,0,0,.55);backdrop-filter:blur(3px)}
 .acts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:6px}.acts .sp{flex:1}
 .chs{display:flex;gap:10px;flex-wrap:wrap}.chs label{display:flex;gap:6px;align-items:center;padding:6px 10px;border:1px solid var(--cp-bd);border-radius:10px;cursor:pointer}
 .chs label.off{opacity:.5}
+.sub{margin:8px 0 2px;padding:8px 10px;border:1px dashed var(--cp-bd);border-radius:10px;display:flex;flex-direction:column;gap:6px}.sub>b{font-size:12px;font-weight:600;opacity:.85}.sub .chs label{font-size:12px;padding:4px 8px}
 .opt{display:flex;gap:8px;align-items:center;padding:6px 0}
 /* réglages */
 .setw{position:absolute;inset:0;background:var(--cp-bg);z-index:30;overflow:auto;padding:18px}
@@ -206,8 +207,8 @@ const TPL = `<style>${CSS}</style>
   <div><label class="l">Description</label><textarea id="f_desc" rows="3"></textarea></div>
   <div><label class="l">Disponibilité</label><select id="f_busy"><option value="1">Occupé</option><option value="0">Libre</option></select></div>
   <div class="box"><label class="l" style="margin:0">Rappels</label><div id="f_rem"></div>
-   <div class="line"><button class="btn" data-act="remAdd" data-rc="form">＋ Ajouter un rappel</button></div>
-   <label class="l" style="margin:6px 0 0">Prévenir par</label><div class="chs" id="f_ch"></div></div>
+   <div class="line"><button class="btn" data-act="remAdd" data-rc="form">＋ Ajouter un rappel</button><button class="btn" data-act="remNow" data-rc="form">⏰ À l'heure du RDV</button></div>
+   <label class="l" style="margin:6px 0 0">Prévenir par</label><div class="chs" id="f_ch"></div><div id="f_tg"></div></div>
   <div class="acts"><button class="btn danger" id="b_del" data-act="del">Supprimer</button><button class="btn" id="b_dup" data-act="dup">Dupliquer</button><span class="sp"></span><button class="btn" data-act="close">Fermer</button><button class="btn pri" data-act="save">Enregistrer</button></div>
  </div></dialog>
  <dialog id="scope" style="width:min(420px,94vw)"><form method="dialog" class="df">
@@ -631,6 +632,7 @@ class CalendrierPanel extends HTMLElement {
   splitMin(m) { for (const [u] of [...UNITS].reverse()) if (m && m % u === 0) return [m / u, u]; return [m, 1]; }
   remRows(list, ctx) {
     return list.map((m, i) => {
+      if (m === 0) return `<div class="rr"><span>⏰ À l'heure de l'événement</span><button class="btn ib" data-act="remDel" data-rc="${ctx}" data-ri="${i}">✕</button></div>`;
       const [n, u] = this.splitMin(m);
       return `<div class="rr"><input type="number" min="0" value="${n}" data-rc="${ctx}" data-ri="${i}"><select data-rc="${ctx}" data-ri="${i}">${UNITS.map(([v, l]) => `<option value="${v}" ${v === u ? "selected" : ""}>${l}</option>`).join("")}</select><span class="mut">avant</span><button class="btn ib" data-act="remDel" data-rc="${ctx}" data-ri="${i}">✕</button></div>`;
     }).join("") || `<div class="hint">Aucun rappel</div>`;
@@ -638,9 +640,12 @@ class CalendrierPanel extends HTMLElement {
   remList(ctx) { return ctx === "form" ? this.F.rem : this.S.draft.default_reminders; }
   remChange(t) {
     const row = t.closest(".rr");
-    this.remList(t.dataset.rc)[+t.dataset.ri] = Math.max(0, Math.round((+row.querySelector("input").value || 0) * +row.querySelector("select").value));
+    const v = Math.max(0, Math.round((+row.querySelector("input").value || 0) * +row.querySelector("select").value));
+    this.remList(t.dataset.rc)[+t.dataset.ri] = v;
+    if (v === 0) this.remRefresh(t.dataset.rc);
   }
   remRefresh(ctx) { if (ctx === "form") this.$("#f_rem").innerHTML = this.remRows(this.F.rem, "form"); else this.renderSettings(); }
+  a_remNow(t) { const l = this.remList(t.dataset.rc); if (l.includes(0)) return this.toast("Ce rappel existe déjà", true); l.unshift(0); this.remRefresh(t.dataset.rc); }
   a_remAdd(t) { this.remList(t.dataset.rc).push(30); this.remRefresh(t.dataset.rc); }
   a_remDel(t) { this.remList(t.dataset.rc).splice(+t.dataset.ri, 1); this.remRefresh(t.dataset.rc); }
 
@@ -660,7 +665,8 @@ class CalendrierPanel extends HTMLElement {
     const base = o ? await this.ws("event/get", { event_id: o.event_id }) : null;
     const rec = base?.recurrence ? JSON.parse(JSON.stringify(base.recurrence)) : null;
     this.F = { id: o?.event_id || null, key: o?.key || null, recurring: !!rec, baseRec: JSON.stringify(rec), rec,
-      rem: o ? [...(o.reminders || [])] : [...(S.set.default_reminders || [])], ch: o ? [...(o.channels || [])] : [...(S.set.default_channels || [])] };
+      rem: o ? [...(o.reminders || [])] : [...(S.set.default_reminders || [])], ch: o ? [...(o.channels || [])] : [...(S.set.default_channels || [])],
+      hs: o ? [...(o.ha_services || [])] : [], as: o ? [...(o.alexa_services || [])] : [] };
     const ad = o ? o.all_day : false;
     const s = o ? pd(o.start) : def.start, e = o ? pd(o.end) : def.end;
     $("dt").textContent = o ? "Modifier l'événement" : "Nouvel événement";
@@ -688,6 +694,31 @@ class CalendrierPanel extends HTMLElement {
       const on = this.S.set[k + "_enabled"];
       return `<label class="${on ? "" : "off"}" title="${on ? "" : "Canal désactivé dans les réglages"}"><input type="checkbox" data-fch="${k}" ${this.F.ch.includes(k) ? "checked" : ""}> ${i} ${l}</label>`;
     }).join("");
+    this.renderTargets();
+  }
+  /* Cibles précises : uniquement parmi les services choisis dans les réglages */
+  svcNorm(s) { s = String(s || "").trim(); return s.startsWith("notify.") ? s : "notify." + s; }
+  svcLabel(s) { return s.replace(/^notify\./, "").replace(/^alexa_media_/, "").replace(/^mobile_app_/, "").replace(/_/g, " "); }
+  svcPool(kind) {
+    const st = this.S.set || {};
+    if (kind === "alexa") return [...new Set((st.alexa_services || []).filter(Boolean).map(s => this.svcNorm(s)))];
+    const l = (st.ha_services || []).filter(Boolean).map(s => this.svcNorm(s));
+    if ((st.ha_custom || "").trim()) l.push(this.svcNorm(st.ha_custom));
+    return [...new Set(l)];
+  }
+  renderTargets() {
+    const F = this.F, box = this.$("#f_tg");
+    if (!box || !F) return;
+    let h = "";
+    for (const [kind, key, title] of [["ha", "hs", "🏠 Appareils / services Home Assistant"], ["alexa", "as", "🔊 Appareils Alexa"]]) {
+      if (!F.ch.includes(kind)) continue;
+      const pool = this.svcPool(kind);
+      if (!pool.length) { h += `<div class="sub"><b>${title}</b><div class="hint">Aucun appareil choisi dans Réglages › Notifications.</div></div>`; continue; }
+      const chosen = F[key].map(s => this.svcNorm(s)).filter(s => pool.includes(s)), on = chosen.length ? chosen : pool;
+      h += `<div class="sub"><b>${title}</b><div class="chs">${pool.map(s => `<label><input type="checkbox" data-ftg="${kind}" value="${esc(s)}" ${on.includes(s) ? "checked" : ""}> ${esc(this.svcLabel(s))}</label>`).join("")}</div>`
+        + `<div class="hint">${on.length === pool.length ? "Tous les appareils choisis dans les réglages seront prévenus." : `${on.length} appareil(s) sur ${pool.length} seront prévenus.`}</div></div>`;
+    }
+    box.innerHTML = h;
   }
   formStart() { const v = this.$("#f_sd").value; return v ? pd(v) : new Date(); }
   presetOf(r, s) {
@@ -750,7 +781,14 @@ class CalendrierPanel extends HTMLElement {
   _formChange(e) {
     const t = e.target, F = this.F, $ = id => this.$("#" + id);
     if (t.dataset.rc !== undefined) return this.remChange(t);
-    if (t.dataset.fch) { const i = F.ch.indexOf(t.dataset.fch); t.checked ? i < 0 && F.ch.push(t.dataset.fch) : i >= 0 && F.ch.splice(i, 1); return; }
+    if (t.dataset.fch) { const i = F.ch.indexOf(t.dataset.fch); t.checked ? i < 0 && F.ch.push(t.dataset.fch) : i >= 0 && F.ch.splice(i, 1); return this.renderTargets(); }
+    if (t.dataset.ftg) {
+      const kind = t.dataset.ftg, pool = this.svcPool(kind);
+      const checked = [...this.$("#f_tg").querySelectorAll(`input[data-ftg="${kind}"]:checked`)].map(x => x.value);
+      if (!checked.length) { t.checked = true; return this.toast("Garde au moins un appareil, ou décoche le canal", true); }
+      F[kind === "alexa" ? "as" : "hs"] = checked.length === pool.length ? [] : checked;
+      return this.renderTargets();
+    }
     if (t.dataset.wd !== undefined) {
       const b = +t.dataset.wd, l = F.rec.byweekday || (F.rec.byweekday = []), i = l.indexOf(b);
       t.checked ? i < 0 && l.push(b) : i >= 0 && l.splice(i, 1); return this.renderRec();
@@ -799,7 +837,8 @@ class CalendrierPanel extends HTMLElement {
     if (F.rec?.end?.type === "until" && !F.rec.end.until) return this.toast("Choisis la date de fin de répétition", true);
     const ev = { id: F.id, title, calendar_id: $("f_cal").value, status: $("f_stat").value, importance: +this.$("input[name=imp]:checked").value,
       all_day: ad, start, end, location: $("f_loc").value, url: $("f_url").value, description: $("f_desc").value, busy: $("f_busy").value === "1",
-      reminders: F.rem, channels: F.ch, recurrence: F.rec };
+      reminders: F.rem, channels: F.ch, recurrence: F.rec,
+      ha_services: F.ch.includes("ha") ? F.hs : [], alexa_services: F.ch.includes("alexa") ? F.as : [] };
     let scope = "all", key = null;
     if (F.id && F.recurring) {
       const changed = JSON.stringify(F.rec) !== F.baseRec;
@@ -955,7 +994,7 @@ class CalendrierPanel extends HTMLElement {
         ${u.img ? fld(`Voile sur l'image : ${u.dim} %`, `<input type="range" min="0" max="100" data-u="dim" data-t="n" value="${u.dim}">`) : ""}</div>`;
     } else if (S.tab === "rem") {
       h = `${S.admin ? "" : `<div class="hint">Seul un administrateur peut modifier ces réglages.</div>`}<div class="card"><div class="ch"><h3>Rappels par défaut</h3></div><div class="hint">Appliqués aux nouveaux événements ; modifiables pour chaque événement.</div>
-        <div id="d_rem">${this.remRows(d.default_reminders, "draft")}</div><button class="btn" data-act="remAdd" data-rc="draft" ${dis}>＋ Ajouter un rappel</button>
+        <div id="d_rem">${this.remRows(d.default_reminders, "draft")}</div><button class="btn" data-act="remAdd" data-rc="draft" ${dis}>＋ Ajouter un rappel</button> <button class="btn" data-act="remNow" data-rc="draft" ${dis}>⏰ À l'heure de l'événement</button>
         <div class="fld"><label>Prévenir par défaut sur</label><div class="chs">${Object.entries(CHN).map(([k, [i, l]]) => `<label><input type="checkbox" data-sl="default_channels" value="${k}" ${d.default_channels.includes(k) ? "checked" : ""} ${dis}> ${i} ${l}</label>`).join("")}</div></div>
         ${fld("Heure des rappels pour les événements « toute la journée »", `<input type="time" data-s="allday_time" value="${d.allday_time}" style="width:130px" ${dis}><div class="hint">Un rappel « 1 jour avant » part la veille à cette heure.</div>`)}</div>`;
     } else if (S.tab === "notif") {

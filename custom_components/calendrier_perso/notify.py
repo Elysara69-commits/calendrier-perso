@@ -89,6 +89,19 @@ def _in_quiet(settings: dict[str, Any]) -> bool:
     return (a <= now or now < b) if a > b else (a <= now < b)
 
 
+def _pick(available: list[str], chosen: Any) -> list[str]:
+    """Services voulus pour l'événement, limités à ceux autorisés dans les réglages.
+
+    Liste vide (ou plus aucun service valide) = tous les services des réglages.
+    """
+    available = list(dict.fromkeys(available))
+    if not chosen or not isinstance(chosen, (list, tuple)):
+        return available
+    wanted = {str(c).removeprefix("notify.") for c in chosen}
+    picked = [s for s in available if s.removeprefix("notify.") in wanted]
+    return picked or available
+
+
 # --------------------------------------------------------------------------
 # Canaux
 # --------------------------------------------------------------------------
@@ -99,6 +112,7 @@ async def _send_ha(hass: HomeAssistant, s: dict[str, Any], occ, tx) -> tuple[boo
         services.append(custom)
     if not services:
         return False, "aucun service notify choisi"
+    services = _pick(services, occ.get("ha_services"))
     lvl = max(0, min(3, int(occ.get("importance") or 1)))
     done, errors = 0, []
     for svc in services:
@@ -128,6 +142,7 @@ async def _send_alexa(hass: HomeAssistant, s: dict[str, Any], occ, tx, test) -> 
     services = [x for x in s.get("alexa_services", []) if x]
     if not services:
         return False, "aucun appareil Alexa choisi"
+    services = _pick(services, occ.get("alexa_services"))
     if not test and _in_quiet(s):
         return False, "heures silencieuses"
     done, errors = 0, []

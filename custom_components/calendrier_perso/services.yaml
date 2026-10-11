@@ -45,6 +45,14 @@ add_event:
         select:
           multiple: true
           options: [ha, alexa, discord, telegram]
+    ha_services:
+      example: "[notify.mobile_app_pixel]"
+      selector:
+        object:
+    alexa_services:
+      example: "[notify.alexa_media_salon]"
+      selector:
+        object:
     repeat:
       default: none
       selector:

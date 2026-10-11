@@ -40,7 +40,8 @@ _LOGGER = logging.getLogger(__name__)
 
 EVENT_KEYS = (
     "title", "description", "location", "url", "calendar_id", "importance", "status",
-    "busy", "reminders", "channels", "all_day", "start", "end", "recurrence",
+    "busy", "reminders", "channels", "ha_services", "alexa_services", "all_day", "start", "end",
+    "recurrence",
 )
 TICK = timedelta(seconds=30)
 CATCH_UP = timedelta(hours=1)
@@ -233,6 +234,11 @@ class CalendarManager:
         ev["busy"] = bool(ev.get("busy", True))
         ev["reminders"] = sorted({max(0, min(525600, _int(x))) for x in (ev.get("reminders") or [])})
         ev["channels"] = [c for c in dict.fromkeys(ev.get("channels") or []) if c in CHANNELS]
+        # Cibles précises (vide = tous les services choisis dans les réglages)
+        for k in ("ha_services", "alexa_services"):
+            raw_list = ev.get(k)
+            raw_list = raw_list if isinstance(raw_list, list) else []
+            ev[k] = list(dict.fromkeys(str(x).strip() for x in raw_list if str(x or "").strip()))[:30]
         ev["recurrence"] = self._clean_rec(ev.get("recurrence"))
         ev.setdefault("exdates", [])
         ev.setdefault("overrides", {})

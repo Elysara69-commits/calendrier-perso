@@ -27,7 +27,7 @@ FREQS = {
 
 FIELDS = (
     "title", "description", "location", "url", "calendar_id", "importance",
-    "status", "busy", "reminders", "channels",
+    "status", "busy", "reminders", "channels", "ha_services", "alexa_services",
 )
 OVERRIDABLE = FIELDS + ("start", "end")
 

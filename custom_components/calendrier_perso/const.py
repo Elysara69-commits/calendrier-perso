@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 DOMAIN = "calendrier_perso"
-VERSION = "2.0.2"
+VERSION = "2.1.1"
 
 STORAGE_KEY = "calendrier_perso.data"
 STORAGE_VERSION = 1
